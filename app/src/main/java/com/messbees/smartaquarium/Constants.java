@@ -11,5 +11,7 @@ public class Constants {
     public static final String PUBLISH_TOPIC = "/android/test";
 
     public static final String CLIENT_ID = "android";
+
+    public static final String SUBSCRIBE_TOPIC = "/ESP_Easy/ds18b20/temperature";
 }
 
