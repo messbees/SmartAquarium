@@ -1,10 +1,13 @@
 package com.messbees.smartaquarium;
 
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -23,6 +26,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private PahoMqttClient pahoMqttClient;
 
     public static TextView temperatureView;
+    public static TextView dateView;
     private CheckBox notificationCheckbox;
     private Button enableButton;
     private SharedPreferences sharedPref;
@@ -30,19 +34,54 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public static Boolean showNotification;
 
     private Intent intent;
+    private String lastValue;
+    private String lastDate;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        android.support.v7.app.ActionBar menu = getSupportActionBar();
+        menu.setDisplayShowHomeEnabled(true);
+        menu.setLogo(R.mipmap.ic_launcher);
+        menu.setDisplayUseLogoEnabled(true);
+
         pahoMqttClient = new PahoMqttClient();
         client = pahoMqttClient.getMqttClient(getApplicationContext(), Constants.MQTT_BROKER_URL, Constants.CLIENT_ID);
         intent = new Intent(MainActivity.this, MqttMessageService.class);
+
         sharedPref = getPreferences(Context.MODE_PRIVATE);
         isSubscribed = sharedPref.getBoolean("isSubscribed", false);
+        lastValue = sharedPref.getString("lastValue", "");
+        lastDate = sharedPref.getString("lastDate", "");
         showNotification = sharedPref.getBoolean("showNotification", false);
 
+        dateView = (TextView) findViewById(R.id.dateView);
+        dateView.setText(lastDate);
         temperatureView = (TextView) findViewById(R.id.temerature);
+        temperatureView.setText(lastValue);
+        temperatureView.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                lastDate = dateView.getText().toString();
+                lastValue = temperatureView.getText().toString();
+                SharedPreferences.Editor editor = sharedPref.edit();
+                editor.putString("lastValue", lastValue);
+                editor.putString("lastDate", lastDate);
+                editor.commit();
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+
+            }
+        });
         notificationCheckbox = (CheckBox) findViewById(R.id.checkBox);
         if (showNotification) {
             notificationCheckbox.setChecked(true);
