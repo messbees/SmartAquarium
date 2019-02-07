@@ -44,7 +44,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         android.support.v7.app.ActionBar menu = getSupportActionBar();
         menu.setDisplayShowHomeEnabled(true);
-        menu.setLogo(R.mipmap.ic_launcher);
+        menu.setLogo(R.mipmap.ic_actionbar_background);
         menu.setDisplayUseLogoEnabled(true);
 
         pahoMqttClient = new PahoMqttClient();
@@ -136,7 +136,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 if (notificationCheckbox.isChecked()) {
                     editor.putBoolean("showNotification", true);
                     showNotification = true;
-                    Toast.makeText(this, "notification on", Toast.LENGTH_LONG).show();
                 }
                 else {
                     editor.putBoolean("showNotification", false);
