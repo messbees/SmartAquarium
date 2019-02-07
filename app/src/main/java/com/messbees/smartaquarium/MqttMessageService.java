@@ -133,9 +133,10 @@ public class MqttMessageService extends Service {
 
         mBuilder.setContentIntent(pendingIntent);
         mBuilder.setSmallIcon(R.drawable.ic_notification);
-        mBuilder.setPriority(Notification.PRIORITY_MAX);
         mBuilder.setStyle(bigText);
-
+        mBuilder.setPriority(Notification.PRIORITY_MAX);
+        mBuilder.setDefaults(Notification.DEFAULT_VIBRATE | Notification.DEFAULT_SOUND)
+                .setVibrate(new long[]{0L});
         mNotificationManager =
                 (NotificationManager) this.getSystemService(Context.NOTIFICATION_SERVICE);
 
