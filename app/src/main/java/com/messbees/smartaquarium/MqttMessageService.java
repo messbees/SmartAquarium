@@ -20,7 +20,7 @@ import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
-import java.util.Calendar;
+import java.text.DateFormat;
 import java.util.Date;
 
 public class MqttMessageService extends Service {
@@ -53,7 +53,7 @@ public class MqttMessageService extends Service {
 
             @Override
             public void messageArrived(String s, MqttMessage mqttMessage) throws Exception {
-                date = Calendar.getInstance().getTime().toGMTString();
+                date =  DateFormat.getDateTimeInstance().format(new Date());
                 temperature = new String(mqttMessage.getPayload()) + "°С";
                 MainActivity.dateView.setText(date);
                 MainActivity.temperatureView.setText(temperature);
