@@ -53,13 +53,12 @@ public class MqttMessageService extends Service {
 
             @Override
             public void messageArrived(String s, MqttMessage mqttMessage) throws Exception {
-                String currentTime = Calendar.getInstance().getTime().toGMTString();
-                date = currentTime;
+                date = Calendar.getInstance().getTime().toGMTString();
                 temperature = new String(mqttMessage.getPayload()) + "°С";
                 MainActivity.dateView.setText(date);
                 MainActivity.temperatureView.setText(temperature);
                 if (MainActivity.showNotification) {
-                    setMessageNotification(s, temperature);
+                    setMessageNotification(s, temperature, date);
                 }
             }
 
@@ -88,7 +87,7 @@ public class MqttMessageService extends Service {
         Log.d(TAG, "onDestroy");
     }
 
-    private void setMessageNotification(@NonNull String topic, @NonNull String msg) {
+    private void setMessageNotification(@NonNull String topic, @NonNull String value, @NonNull String date) {
 //        NotificationCompat.Builder mBuilder =
 //                new NotificationCompat.Builder(this, "channel_id")
 //                        .setSmallIcon(R.drawable.ic_notification)
@@ -129,8 +128,8 @@ public class MqttMessageService extends Service {
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, ii, 0);
 
         NotificationCompat.BigTextStyle bigText = new NotificationCompat.BigTextStyle();
-        bigText.bigText(msg);
-        bigText.setBigContentTitle("Smart Aquarium");
+        bigText.bigText(date);
+        bigText.setBigContentTitle(value);
 
         mBuilder.setContentIntent(pendingIntent);
         mBuilder.setSmallIcon(R.drawable.ic_notification);
@@ -144,7 +143,7 @@ public class MqttMessageService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             String channelId = "YOUR_CHANNEL_ID";
             NotificationChannel channel = new NotificationChannel(channelId,
-                    "Smart Aquarium",
+                    "Aquarium Temperature",
                     NotificationManager.IMPORTANCE_DEFAULT);
             mNotificationManager.createNotificationChannel(channel);
             mBuilder.setChannelId(channelId);
