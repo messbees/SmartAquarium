@@ -6,8 +6,8 @@ android {
         applicationId "com.messbees.smartaquarium"
         minSdkVersion 16
         targetSdkVersion 28
-        versionCode 6
-        versionName "1.0.2"
+        versionCode 7
+        versionName "1.0.3pre"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
