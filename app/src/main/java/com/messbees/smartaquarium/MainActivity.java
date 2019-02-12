@@ -1,9 +1,9 @@
 package com.messbees.smartaquarium;
 
-import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.provider.Settings;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.Editable;
@@ -11,12 +11,17 @@ import android.text.TextWatcher;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
-import android.widget.CompoundButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import org.eclipse.paho.android.service.MqttAndroidClient;
+import org.eclipse.paho.client.mqttv3.IMqttActionListener;
+import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
+import org.eclipse.paho.client.mqttv3.IMqttToken;
+import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
 
 import java.io.UnsupportedEncodingException;
 
@@ -25,13 +30,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private String TAG = "MainActivity";
     private PahoMqttClient pahoMqttClient;
 
-    public static TextView temperatureView;
-    public static TextView dateView;
+    private TextView temperatureView, dateView;
     private CheckBox notificationCheckbox;
-    private Button enableButton;
+    private Button lightButton;
     private SharedPreferences sharedPref;
-    private Boolean isSubscribed;
+
+    public static Boolean light = false;
+
     public static Boolean showNotification;
+
+    public static String CLIENT_ID;
+    private AppCompatActivity context;
 
     private Intent intent;
     private String lastValue;
@@ -41,24 +50,29 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        context = this;
+        MqttMessageService.setContext(context);
+
+        CLIENT_ID = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
 
         getSupportActionBar().setDisplayShowHomeEnabled(true);
         getSupportActionBar().setIcon(R.mipmap.ic_actionbar_background);
-        //menu.setDisplayUseLogoEnabled(true);
 
         pahoMqttClient = new PahoMqttClient();
-        client = pahoMqttClient.getMqttClient(getApplicationContext(), Constants.MQTT_BROKER_URL, Constants.CLIENT_ID);
+        client = pahoMqttClient.getMqttClient(getApplicationContext(), Constants.MQTT_BROKER_URL, CLIENT_ID);
         intent = new Intent(MainActivity.this, MqttMessageService.class);
 
         sharedPref = getPreferences(Context.MODE_PRIVATE);
-        isSubscribed = sharedPref.getBoolean("isSubscribed", false);
         lastValue = sharedPref.getString("lastValue", "");
         lastDate = sharedPref.getString("lastDate", "");
         showNotification = sharedPref.getBoolean("showNotification", false);
 
-        dateView = (TextView) findViewById(R.id.dateView);
+        lightButton = findViewById(R.id.lightButton);
+        lightButton.setOnClickListener(this);
+
+        dateView = findViewById(R.id.dateView);
         dateView.setText(lastDate);
-        temperatureView = (TextView) findViewById(R.id.temerature);
+        temperatureView = findViewById(R.id.temerature);
         temperatureView.setText(lastValue);
         temperatureView.addTextChangedListener(new TextWatcher() {
             @Override
@@ -73,7 +87,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 SharedPreferences.Editor editor = sharedPref.edit();
                 editor.putString("lastValue", lastValue);
                 editor.putString("lastDate", lastDate);
-                editor.commit();
+                editor.apply();
             }
 
             @Override
@@ -81,55 +95,41 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             }
         });
-        notificationCheckbox = (CheckBox) findViewById(R.id.checkBox);
+        notificationCheckbox = findViewById(R.id.checkBox);
         if (showNotification) {
             notificationCheckbox.setChecked(true);
         }
-        enableButton = (Button) findViewById(R.id.enableButton);
-        if (!isSubscribed) {
-            enableButton.setText("Включить");
-            notificationCheckbox.setEnabled(false);
-        }
-        else {
-            enableButton.setText("Выключить");
-            notificationCheckbox.setEnabled(true);
-        }
-
-        enableButton.setOnClickListener(this);
         notificationCheckbox.setOnClickListener(this);
+
+        try {
+
+            client.connect(null, new IMqttActionListener() {
+
+                @Override
+                public void onSuccess(IMqttToken mqttToken) {
+                    try {
+                        pahoMqttClient.subscribe(client, Constants.SUBSCRIBE_TOPIC, 2);
+                        pahoMqttClient.subscribe(client, Constants.LIGHT_TOPIC, 2);
+                        startService(intent);
+
+                    } catch (MqttException e) {
+                        Toast.makeText(context, e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+                    }
+                }
+
+                @Override
+                public void onFailure(IMqttToken arg0, Throwable arg1) {
+                    Toast.makeText(context, "Фэйлд ту коннект...", Toast.LENGTH_LONG).show();
+                }
+            });
+        }
+        catch (MqttException e) {
+            Toast.makeText(this, e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     public void onClick(View v) {
         switch (v.getId()) {
-            case R.id.enableButton:
-                try {
-                    SharedPreferences.Editor editor = sharedPref.edit();
-                    Boolean result;
-                    if (isSubscribed) {
-                        pahoMqttClient.unSubscribe(client, Constants.SUBSCRIBE_TOPIC);
-                        pahoMqttClient.publishMessage(client, "Unsubscribed", 2, Constants.PUBLISH_TOPIC);
-                        enableButton.setText("Включить");
-                        stopService(intent);
-                        result = false;
-                    }
-                    else {
-                        pahoMqttClient.subscribe(client, Constants.SUBSCRIBE_TOPIC, 2);
-                        pahoMqttClient.publishMessage(client, "Subscribed", 2, Constants.PUBLISH_TOPIC);
-                        enableButton.setText("Выключить");
-                        startService(intent);
-                        result = true;
-                    }
-                    notificationCheckbox.setEnabled(result);
-                    editor.putBoolean("isSubscribed", result);
-                    editor.commit();
-                    isSubscribed = result;
-                } catch (MqttException e) {
-                    Toast.makeText(this, e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
-                } catch (UnsupportedEncodingException e) {
-                    Toast.makeText(this, e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
-                }
-                break;
-
             case R.id.checkBox:
                 SharedPreferences.Editor editor = sharedPref.edit();
                 if (notificationCheckbox.isChecked()) {
@@ -140,7 +140,26 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     editor.putBoolean("showNotification", false);
                     showNotification = false;
                 }
-                editor.commit();
+                editor.apply();
+                break;
+
+            case R.id.lightButton:
+                try {
+                    String l;
+                    if (light)
+                        l = "0";
+                    else
+                        l = "1";
+                    pahoMqttClient.publishMessage(client, l, 2, Constants.LIGHT_TOPIC);
+                }
+                catch (MqttException e) {
+                    Toast.makeText(this, e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+                }
+                catch (UnsupportedEncodingException e) {
+                    Toast.makeText(this, e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+                }
+                break;
         }
     }
+
 }

@@ -13,7 +13,9 @@ import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.widget.TextView;
 
 import org.eclipse.paho.android.service.MqttAndroidClient;
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
@@ -30,6 +32,16 @@ public class MqttMessageService extends Service {
     private MqttAndroidClient mqttAndroidClient;
     public static String temperature = "";
     public static String date = "";
+    private static AppCompatActivity context;
+
+    private static AppCompatActivity getContext() {
+        return context;
+    }
+
+    public static void setContext(AppCompatActivity c) {
+        context = c;
+    }
+
     public MqttMessageService() {
     }
 
@@ -38,7 +50,7 @@ public class MqttMessageService extends Service {
         super.onCreate();
         Log.d(TAG, "onCreate");
         pahoMqttClient = new PahoMqttClient();
-        mqttAndroidClient = pahoMqttClient.getMqttClient(getApplicationContext(), Constants.MQTT_BROKER_URL, Constants.CLIENT_ID);
+        mqttAndroidClient = pahoMqttClient.getMqttClient(getApplicationContext(), Constants.MQTT_BROKER_URL, MainActivity.CLIENT_ID);
 
         mqttAndroidClient.setCallback(new MqttCallbackExtended() {
             @Override
@@ -52,14 +64,28 @@ public class MqttMessageService extends Service {
             }
 
             @Override
-            public void messageArrived(String s, MqttMessage mqttMessage) throws Exception {
-                date =  DateFormat.getDateTimeInstance().format(new Date());
-                temperature = new String(mqttMessage.getPayload()) + "°С";
-                MainActivity.dateView.setText(date);
-                MainActivity.temperatureView.setText(temperature);
-                if (MainActivity.showNotification) {
-                    setMessageNotification(s, temperature, date);
+            public void messageArrived(String topic, MqttMessage mqttMessage) throws Exception {
+                switch (topic) {
+                    case Constants.SUBSCRIBE_TOPIC:
+                        date =  DateFormat.getDateTimeInstance().format(new Date());
+                        temperature = new String(mqttMessage.getPayload()) + "°С";
+                        TextView dateView = (TextView) getContext().findViewById(R.id.dateView);
+                        TextView temperatureView = (TextView) getContext().findViewById(R.id.temerature);
+                        dateView.setText(date);
+                        temperatureView.setText(temperature);
+                        if (MainActivity.showNotification) {
+                            setMessageNotification(topic, temperature, date);
+                        }
+                        break;
+                    case Constants.LIGHT_TOPIC:
+                        String state = new String(mqttMessage.getPayload());
+                        if (state.equals("0"))
+                            MainActivity.light = false;
+                        else if (state.equals("1"))
+                            MainActivity.light = true;
+                        break;
                 }
+
             }
 
             @Override
