@@ -3,6 +3,7 @@ package com.messbees.smartaquarium;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.provider.Settings;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.Editable;
@@ -38,6 +39,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     public static Boolean showNotification;
 
+    public static String CLIENT_ID;
     private AppCompatActivity context;
 
     private Intent intent;
@@ -49,14 +51,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         context = this;
-        Constants.setContext(context);
         MqttMessageService.setContext(context);
+
+        CLIENT_ID = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
 
         getSupportActionBar().setDisplayShowHomeEnabled(true);
         getSupportActionBar().setIcon(R.mipmap.ic_actionbar_background);
 
         pahoMqttClient = new PahoMqttClient();
-        client = pahoMqttClient.getMqttClient(getApplicationContext(), Constants.MQTT_BROKER_URL, Constants.CLIENT_ID);
+        client = pahoMqttClient.getMqttClient(getApplicationContext(), Constants.MQTT_BROKER_URL, CLIENT_ID);
         intent = new Intent(MainActivity.this, MqttMessageService.class);
 
         sharedPref = getPreferences(Context.MODE_PRIVATE);
